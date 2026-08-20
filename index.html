@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATSMATRIX // AGENT GRAPH</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#030712;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;height:100vh}
+  #canvas{position:absolute;top:0;left:0;width:100%;height:100%}
+  .hud{position:absolute;top:16px;left:16px;z-index:10;pointer-events:none}
+  .hud h1{font-size:18px;font-weight:700;letter-spacing:2px;color:#38bdf8;text-shadow:0 0 12px #0ea5e9}
+  .hud .sub{font-size:11px;color:#64748b;margin-top:2px;letter-spacing:1px}
+  .panel{position:absolute;top:16px;right:16px;width:300px;background:rgba(15,23,42,0.92);border:1px solid #1e293b;border-radius:12px;padding:16px;z-index:20;backdrop-filter:blur(12px)}
+  .panel h2{font-size:13px;color:#94a3b8;margin-bottom:12px;letter-spacing:1px;text-transform:uppercase}
+  .field{margin-bottom:10px}
+  .field label{display:block;font-size:11px;color:#64748b;margin-bottom:4px}
+  .field input{width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:8px 10px;color:#e2e8f0;font-size:13px;outline:none}
+  .field input:focus{border-color:#38bdf8}
+  .btn{width:100%;background:linear-gradient(135deg,#0ea5e9,#6366f1);border:none;border-radius:6px;padding:10px;color:#fff;font-weight:600;font-size:13px;cursor:pointer;margin-top:4px;transition:opacity .2s}
+  .btn:hover{opacity:.9}
+  .agents-list{margin-top:14px;max-height:180px;overflow-y:auto}
+  .agent-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1e293b;font-size:12px}
+  .dot{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px #22c55e}
+  .stats{position:absolute;bottom:16px;left:16px;display:flex;gap:16px;z-index:10;font-size:11px;color:#64748b}
+  .stats span{color:#94a3b8}
+  .stats b{color:#38bdf8;font-weight:600}
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+
+<div class="hud">
+  <h1>◈ ATSMATRIX // AGENT GRAPH</h1>
+  <div class="sub">MULTI-AGENT NETWORK · API CONNECTOR · REAL-TIME TELEMETRY</div>
+</div>
+
+<div class="panel">
+  <h2>Connect Agent</h2>
+  <div class="field">
+    <label>Agent Name</label>
+    <input id="agentName" placeholder="Researcher-01" value="">
+  </div>
+  <div class="field">
+    <label>Endpoint URL</label>
+    <input id="agentUrl" placeholder="https://api.example.com/v1/chat" value="">
+  </div>
+  <div class="field">
+    <label>API Key (optional)</label>
+    <input id="agentKey" type="password" placeholder="sk-...">
+  </div>
+  <button class="btn" onclick="connectAgent()">Connect Agent</button>
+  <div class="agents-list" id="agentsList"></div>
+</div>
+
+<div class="stats">
+  <div>Agents: <b id="statAgents">0</b></div>
+  <div>Links: <b id="statLinks">0</b></div>
+  <div>Packets: <b id="statPackets">0</b></div>
+  <div>FPS: <b id="statFps">0</b></div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let W, H, agents = [], links = [], packets = [], frame = 0, lastTime = performance.now(), fps = 0;
+
+function resize(){
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+const COLORS = ['#38bdf8','#a855f7','#f43f5e','#22c55e','#f59e0b','#06b6d4','#ec4899'];
+
+function createAgent(name, url){
+  const angle = Math.random() * Math.PI * 2;
+  const r = 120 + Math.random() * 180;
+  return {
+    id: Date.now() + Math.random(),
+    name: name || 'Agent-' + (agents.length+1),
+    url: url || '',
+    x: W/2 + Math.cos(angle)*r,
+    y: H/2 + Math.sin(angle)*r,
+    vx: 0, vy: 0,
+    color: COLORS[agents.length % COLORS.length],
+    radius: 14 + Math.random()*4,
+    pulse: Math.random()*Math.PI*2
+  };
+}
+
+// seed some demo agents
+['Discovery-Hub','Reasoning-Core','Verifier-01','Synth-Broker','Memory-Node'].forEach((n,i)=>{
+  agents.push(createAgent(n, 'sim://' + n.toLowerCase()));
+});
+rebuildLinks();
+
+function rebuildLinks(){
+  links = [];
+  for(let i=0;i<agents.length;i++){
+    for(let j=i+1;j<agents.length;j++){
+      if(Math.random() > 0.45) links.push({a:i, b:j, strength: 0.3 + Math.random()*0.5});
+    }
+  }
+}
+
+function connectAgent(){
+  const name = document.getElementById('agentName').value.trim() || 'Custom-Agent';
+  const url = document.getElementById('agentUrl').value.trim() || 'sim://custom';
+  agents.push(createAgent(name, url));
+  rebuildLinks();
+  updateUI();
+  document.getElementById('agentName').value = '';
+  document.getElementById('agentUrl').value = '';
+  document.getElementById('agentKey').value = '';
+}
+
+function updateUI(){
+  document.getElementById('statAgents').textContent = agents.length;
+  document.getElementById('statLinks').textContent = links.length;
+  const list = document.getElementById('agentsList');
+  list.innerHTML = agents.map(a => `
+    <div class="agent-item">
+      <div class="dot" style="background:${a.color};box-shadow:0 0 6px ${a.color}"></div>
+      <div>${a.name}</div>
+    </div>`).join('');
+}
+updateUI();
+
+function spawnPacket(){
+  if(links.length === 0) return;
+  const l = links[Math.floor(Math.random()*links.length)];
+  packets.push({
+    a: l.a, b: l.b,
+    t: 0,
+    speed: 0.008 + Math.random()*0.012,
+    color: agents[l.a].color
+  });
+}
+
+function physics(){
+  // soft forces toward center + repulsion
+  for(let i=0;i<agents.length;i++){
+    let ax=0, ay=0;
+    // center pull
+    ax += (W/2 - agents[i].x) * 0.0008;
+    ay += (H/2 - agents[i].y) * 0.0008;
+    // repulsion
+    for(let j=0;j<agents.length;j++){
+      if(i===j) continue;
+      const dx = agents[i].x - agents[j].x;
+      const dy = agents[i].y - agents[j].y;
+      const d = Math.sqrt(dx*dx+dy*dy) || 1;
+      if(d < 160){
+        ax += dx / d * 0.4;
+        ay += dy / d * 0.4;
+      }
+    }
+    // spring links
+    links.forEach(l=>{
+      if(l.a!==i && l.b!==i) return;
+      const other = l.a===i ? l.b : l.a;
+      const dx = agents[other].x - agents[i].x;
+      const dy = agents[other].y - agents[i].y;
+      const d = Math.sqrt(dx*dx+dy*dy) || 1;
+      const force = (d - 180) * 0.002 * l.strength;
+      ax += dx/d * force;
+      ay += dy/d * force;
+    });
+    agents[i].vx = (agents[i].vx + ax) * 0.92;
+    agents[i].vy = (agents[i].vy + ay) * 0.92;
+    agents[i].x += agents[i].vx;
+    agents[i].y += agents[i].vy;
+    agents[i].pulse += 0.04;
+  }
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  // subtle grid
+  ctx.strokeStyle = 'rgba(30,41,59,0.4)';
+  ctx.lineWidth = 1;
+  for(let x=0;x<W;x+=60){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<H;y+=60){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+
+  // links
+  links.forEach(l=>{
+    const a = agents[l.a], b = agents[l.b];
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.strokeStyle = 'rgba(100,116,139,0.25)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  });
+
+  // packets
+  packets = packets.filter(p => {
+    p.t += p.speed;
+    if(p.t >= 1) return false;
+    const a = agents[p.a], b = agents[p.b];
+    const x = a.x + (b.x - a.x) * p.t;
+    const y = a.y + (b.y - a.y) * p.t;
+    ctx.beginPath();
+    ctx.arc(x, y, 3.5, 0, Math.PI*2);
+    ctx.fillStyle = p.color;
+    ctx.shadowColor = p.color;
+    ctx.shadowBlur = 10;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    return true;
+  });
+  document.getElementById('statPackets').textContent = packets.length;
+
+  // agents
+  agents.forEach(a=>{
+    const pulse = 1 + Math.sin(a.pulse)*0.12;
+    // glow
+    ctx.beginPath();
+    ctx.arc(a.x, a.y, a.radius*2.2*pulse, 0, Math.PI*2);
+    ctx.fillStyle = a.color + '18';
+    ctx.fill();
+    // core
+    ctx.beginPath();
+    ctx.arc(a.x, a.y, a.radius*pulse, 0, Math.PI*2);
+    ctx.fillStyle = a.color;
+    ctx.shadowColor = a.color;
+    ctx.shadowBlur = 14;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    // label
+    ctx.font = '11px system-ui';
+    ctx.fillStyle = '#cbd5e1';
+    ctx.textAlign = 'center';
+    ctx.fillText(a.name, a.x, a.y + a.radius + 14);
+  });
+}
+
+function loop(t){
+  frame++;
+  if(t - lastTime > 1000){
+    fps = frame;
+    frame = 0;
+    lastTime = t;
+    document.getElementById('statFps').textContent = fps;
+  }
+  if(Math.random() < 0.08) spawnPacket();
+  physics();
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
