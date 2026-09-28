@@ -1,4 +1,4 @@
-# ◈ ATSMATRIX // AGENT GRAPH — Multi-Agent Network & API Connector
+# ◈ ATSMATRIX // AGENT GRAPH — STINT-NET AgentOS Visualizer
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-anyel1to.github.io-0284c7?style=for-the-badge&logo=google-chrome&logoColor=white)](https://anyel1to.github.io/ATSMATRIX-AGENT-GRAPH/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-38bdf8.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
@@ -6,8 +6,10 @@
 [![Agents: Connectable](https://img.shields.io/badge/Agents-API%20Connectable-7c3aed?style=for-the-badge)](https://anyel1to.github.io/ATSMATRIX-AGENT-GRAPH/)
 [![AI Core: Multi-LLM](https://img.shields.io/badge/AI%20Core-Multi--LLM%20Ready-e11d48?style=for-the-badge)](https://anyel1to.github.io/ATSMATRIX-AGENT-GRAPH/)
 
-> **Connect any agent. Visualize the swarm. Watch intelligence emerge.**  
-> **ATSMATRIX // AGENT GRAPH** is a professional multi-agent network visualizer and API connector built by **ATSMATRIX Technologies**. Plug in external agent endpoints (OpenAI, Anthropic, custom LangGraph, CrewAI, AutoGen, or your own), watch real-time message flows, and monitor reasoning graphs in a high-performance canvas engine.
+> **Visualize the real AgentOS roster and Command Center hierarchy.**
+> This GitHub Pages application renders the sanitized `agentos-graph.json`
+> exported from the private STINT-NET Command Center repository. It never
+> receives private endpoints, tokens, instruction contents, or filesystem paths.
 
 ---
 
@@ -20,7 +22,7 @@ Experience the live agent graph in your browser:
 ## 📑 Table of Contents
 1. [Core Features](#-core-features)
 2. [Architecture Overview](#-architecture-overview)
-3. [How to Connect Your Agents](#-how-to-connect-your-agents)
+3. [Source-of-truth synchronization](#-source-of-truth-synchronization)
 4. [Developer Integration](#-developer-integration)
 5. [Local Setup](#-local-setup)
 6. [License & Credits](#-license--credits)
@@ -30,9 +32,9 @@ Experience the live agent graph in your browser:
 ## ✨ Core Features
 
 - **Live Agent Graph Canvas**: Physics-based node network with spring forces, orbital motion, and real-time message photons traveling between agents.
-- **API Connector Panel**: Add any external agent by name + endpoint URL. Supports OpenAI-compatible, custom REST, webhook, and simulated agents.
-- **Multi-Agent Topology**: Pre-built clusters (Discovery, Reasoning, Verification, Synthesis) that expand as you connect new endpoints.
-- **Message Flow Telemetry**: Color-coded packet streams showing request/response cycles, latency, and success/failure states.
+- **Repository-backed topology**: Agents, sub-agents, parents, roles, and capabilities come from the private Command Center manifest.
+- **Command hierarchy**: Runtime, control-plane, and visibility-only sub-agents are visually distinguished.
+- **Safe public projection**: The published snapshot excludes credentials, endpoints, instruction contents, and machine paths.
 - **Zero-Dependency Single File**: Pure HTML5 + Canvas + CSS. Runs on GitHub Pages, Netlify, Vercel, or locally with zero build step.
 - **Dark Cyber Aesthetic**: High-contrast research UI matching the ATSMATRIX visual language.
 
@@ -42,10 +44,11 @@ Experience the live agent graph in your browser:
 
 ```mermaid
 graph TD
-    USER([User / Orchestrator]) --> CONNECTOR[API Connector Layer]
-    CONNECTOR --> A1[Agent Node 1]
-    CONNECTOR --> A2[Agent Node 2]
-    CONNECTOR --> A3[Agent Node N]
+    PRIVATE[Private Command Center manifest] --> EXPORT[Sanitized graph exporter]
+    EXPORT --> SNAPSHOT[agentos-graph.json]
+    SNAPSHOT --> A1[Runtime agents]
+    SNAPSHOT --> A2[Control plane]
+    SNAPSHOT --> A3[Sub-agents]
     A1 <--> GRAPH[Live Graph Engine]
     A2 <--> GRAPH
     A3 <--> GRAPH
@@ -64,40 +67,33 @@ graph TD
 
 ---
 
-## 🔗 How to Connect Your Agents
+## 🔗 Source-of-truth synchronization
 
-1. Open the live demo.
-2. Use the **Connect Agent** panel on the right.
-3. Enter:
-   - Agent Name (e.g. `Researcher-01`)
-   - Endpoint URL (e.g. `https://api.your-agent.com/v1/chat`)
-   - Optional API Key (stored only in browser memory)
-4. Click **Connect**. A new node appears on the graph and begins participating in the swarm simulation.
-5. Watch message packets flow between connected agents in real time.
+The private repository owns `config/agentos.manifest.json` and the
+`agent-graph:export` command. Its publish workflow creates a redacted snapshot
+and updates this repository whenever the manifest changes.
 
-> Note: The demo runs a high-fidelity simulation. For production webhook bridging, extend the connector layer with your preferred backend.
+Cross-repository automation requires a private-repository Actions secret named
+`AGENT_GRAPH_PUBLISH_TOKEN` with contents write access limited to this public
+repository. The token is never embedded in this site or exported JSON.
 
 ---
 
 ## 💻 Developer Integration
 
-The engine is a single self-contained HTML file. You can:
+The renderer remains a zero-build static site. It loads:
 
-- Embed it in any page
-- Host it on GitHub Pages (already configured)
-- Extend the `connectAgent()` function to call real endpoints
-- Hook into the canvas render loop for custom telemetry
+- `index.html` — canvas graph and inspector
+- `agentos-graph.json` — sanitized generated topology
 
-Example payload shape expected by connected agents:
+Published snapshot shape:
 
 ```json
 {
-  "role": "user",
-  "content": "...",
-  "metadata": {
-    "source": "ATSMATRIX-AGENT-GRAPH",
-    "timestamp": 1724150000
-  }
+  "schemaVersion": 1,
+  "source": { "repository": "…", "manifest": "…", "revision": "…" },
+  "nodes": [{ "id": "hermes", "parentId": "commander", "kind": "runtime" }],
+  "links": [{ "source": "commander", "target": "hermes", "type": "parent" }]
 }
 ```
 

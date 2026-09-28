@@ -1,0 +1,300 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-28T06:44:49.285Z",
+  "source": {
+    "repository": "synaptechintel/STINT-NET-Command-Center",
+    "visibility": "private",
+    "manifest": "config/agentos.manifest.json",
+    "revision": "367133eccfdd"
+  },
+  "nodes": [
+    {
+      "id": "commander",
+      "name": "Commander",
+      "role": "control-plane",
+      "kind": "control",
+      "parentId": null,
+      "enabled": true,
+      "dispatchable": false,
+      "capabilities": []
+    },
+    {
+      "id": "hermes",
+      "name": "Hermes",
+      "role": "comms",
+      "kind": "runtime",
+      "parentId": "commander",
+      "enabled": true,
+      "dispatchable": true,
+      "capabilities": [
+        "send_email",
+        "route_lead",
+        "send_followup",
+        "send_notification",
+        "generate_creative"
+      ]
+    },
+    {
+      "id": "plutus",
+      "name": "Plutus",
+      "role": "revenue",
+      "kind": "runtime",
+      "parentId": "commander",
+      "enabled": true,
+      "dispatchable": true,
+      "capabilities": [
+        "process_payment",
+        "send_payment_confirmation",
+        "manage_subscription",
+        "recover_failed_payment",
+        "send_reactivation",
+        "update_pipeline_stage"
+      ]
+    },
+    {
+      "id": "apollo",
+      "name": "Apollo",
+      "role": "ops",
+      "kind": "runtime",
+      "parentId": "commander",
+      "enabled": true,
+      "dispatchable": true,
+      "capabilities": [
+        "log_event",
+        "emit_telemetry",
+        "health_check",
+        "generate_brief"
+      ]
+    },
+    {
+      "id": "heimdall",
+      "name": "Heimdall",
+      "role": "security",
+      "kind": "runtime",
+      "parentId": "commander",
+      "enabled": true,
+      "dispatchable": true,
+      "capabilities": [
+        "scan_env",
+        "review_deploy",
+        "audit_auth",
+        "check_permissions"
+      ]
+    },
+    {
+      "id": "daedalus",
+      "name": "Daedalus",
+      "role": "builder",
+      "kind": "runtime",
+      "parentId": "commander",
+      "enabled": true,
+      "dispatchable": true,
+      "capabilities": [
+        "build_feature",
+        "fix_build",
+        "deploy_prep",
+        "write_receipt"
+      ]
+    },
+    {
+      "id": "openclaw-worker",
+      "name": "OpenClaw Worker",
+      "role": "execution",
+      "kind": "runtime",
+      "parentId": "commander",
+      "enabled": true,
+      "dispatchable": true,
+      "capabilities": [
+        "route_task",
+        "execute_workflow",
+        "report_status"
+      ]
+    },
+    {
+      "id": "local-llm-worker",
+      "name": "Local LLM Worker",
+      "role": "local-llm",
+      "kind": "runtime",
+      "parentId": "commander",
+      "enabled": true,
+      "dispatchable": true,
+      "capabilities": [
+        "summarize_text",
+        "draft_reply",
+        "classify",
+        "extract_entities"
+      ]
+    },
+    {
+      "id": "atomic-bot",
+      "name": "Atomic Bot",
+      "role": "ops-executor",
+      "kind": "runtime",
+      "parentId": "commander",
+      "enabled": true,
+      "dispatchable": true,
+      "capabilities": [
+        "browser_task",
+        "gmail_action",
+        "calendar_action",
+        "doc_action"
+      ]
+    },
+    {
+      "id": "claude-code",
+      "name": "Claude Code Agent",
+      "role": "code",
+      "kind": "runtime",
+      "parentId": "daedalus",
+      "enabled": true,
+      "dispatchable": true,
+      "capabilities": [
+        "code_change",
+        "run_typecheck",
+        "run_build",
+        "deploy_prep",
+        "write_receipt"
+      ]
+    },
+    {
+      "id": "telegram-ops",
+      "name": "Telegram Ops",
+      "role": "mobile-ops",
+      "kind": "runtime",
+      "parentId": "hermes",
+      "enabled": true,
+      "dispatchable": true,
+      "capabilities": [
+        "ops_alert",
+        "send_brief"
+      ]
+    },
+    {
+      "id": "observer",
+      "name": "Observer",
+      "role": "telemetry-subagent",
+      "kind": "subagent",
+      "parentId": "apollo",
+      "enabled": true,
+      "dispatchable": false,
+      "capabilities": []
+    },
+    {
+      "id": "memory-keeper",
+      "name": "Memory Keeper",
+      "role": "memory-subagent",
+      "kind": "subagent",
+      "parentId": "apollo",
+      "enabled": true,
+      "dispatchable": false,
+      "capabilities": []
+    },
+    {
+      "id": "dispatcher-view",
+      "name": "Dispatcher View",
+      "role": "routing-subagent",
+      "kind": "subagent",
+      "parentId": "commander",
+      "enabled": true,
+      "dispatchable": false,
+      "capabilities": []
+    },
+    {
+      "id": "approval-gate",
+      "name": "Approval Gate",
+      "role": "approval-subagent",
+      "kind": "subagent",
+      "parentId": "heimdall",
+      "enabled": true,
+      "dispatchable": false,
+      "capabilities": []
+    },
+    {
+      "id": "incident-controller",
+      "name": "Incident Controller",
+      "role": "incident-subagent",
+      "kind": "subagent",
+      "parentId": "heimdall",
+      "enabled": true,
+      "dispatchable": false,
+      "capabilities": []
+    }
+  ],
+  "links": [
+    {
+      "source": "commander",
+      "target": "hermes",
+      "type": "parent"
+    },
+    {
+      "source": "commander",
+      "target": "plutus",
+      "type": "parent"
+    },
+    {
+      "source": "commander",
+      "target": "apollo",
+      "type": "parent"
+    },
+    {
+      "source": "commander",
+      "target": "heimdall",
+      "type": "parent"
+    },
+    {
+      "source": "commander",
+      "target": "daedalus",
+      "type": "parent"
+    },
+    {
+      "source": "commander",
+      "target": "openclaw-worker",
+      "type": "parent"
+    },
+    {
+      "source": "commander",
+      "target": "local-llm-worker",
+      "type": "parent"
+    },
+    {
+      "source": "commander",
+      "target": "atomic-bot",
+      "type": "parent"
+    },
+    {
+      "source": "daedalus",
+      "target": "claude-code",
+      "type": "parent"
+    },
+    {
+      "source": "hermes",
+      "target": "telegram-ops",
+      "type": "parent"
+    },
+    {
+      "source": "apollo",
+      "target": "observer",
+      "type": "parent"
+    },
+    {
+      "source": "apollo",
+      "target": "memory-keeper",
+      "type": "parent"
+    },
+    {
+      "source": "commander",
+      "target": "dispatcher-view",
+      "type": "parent"
+    },
+    {
+      "source": "heimdall",
+      "target": "approval-gate",
+      "type": "parent"
+    },
+    {
+      "source": "heimdall",
+      "target": "incident-controller",
+      "type": "parent"
+    }
+  ]
+}

@@ -13,14 +13,15 @@
   .hud .sub{font-size:11px;color:#64748b;margin-top:2px;letter-spacing:1px}
   .panel{position:absolute;top:16px;right:16px;width:300px;background:rgba(15,23,42,0.92);border:1px solid #1e293b;border-radius:12px;padding:16px;z-index:20;backdrop-filter:blur(12px)}
   .panel h2{font-size:13px;color:#94a3b8;margin-bottom:12px;letter-spacing:1px;text-transform:uppercase}
-  .field{margin-bottom:10px}
-  .field label{display:block;font-size:11px;color:#64748b;margin-bottom:4px}
-  .field input{width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:8px 10px;color:#e2e8f0;font-size:13px;outline:none}
-  .field input:focus{border-color:#38bdf8}
-  .btn{width:100%;background:linear-gradient(135deg,#0ea5e9,#6366f1);border:none;border-radius:6px;padding:10px;color:#fff;font-weight:600;font-size:13px;cursor:pointer;margin-top:4px;transition:opacity .2s}
-  .btn:hover{opacity:.9}
-  .agents-list{margin-top:14px;max-height:180px;overflow-y:auto}
-  .agent-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1e293b;font-size:12px}
+  .source{border:1px solid #164e63;background:#082f49;border-radius:8px;padding:10px;margin-bottom:10px;font:10px ui-monospace,monospace;color:#67e8f9;line-height:1.55;word-break:break-word}
+  .source strong{display:block;color:#e0f2fe;font-size:11px}
+  .error{display:none;border:1px solid #7f1d1d;background:#450a0a;color:#fecaca;border-radius:7px;padding:8px;font-size:11px;margin-bottom:10px}
+  .detail{border:1px solid #334155;background:#0f172a;border-radius:8px;padding:10px;margin-bottom:10px;min-height:72px}
+  .detail strong{display:block;color:#f8fafc;font-size:13px;margin-bottom:3px}.detail span{display:block;color:#94a3b8;font-size:10px;line-height:1.5}
+  .agents-list{max-height:255px;overflow-y:auto}
+  .agent-item{display:flex;align-items:center;gap:8px;width:100%;padding:7px 5px;border:0;border-bottom:1px solid #1e293b;background:transparent;color:#cbd5e1;font-size:12px;text-align:left;cursor:pointer}
+  .agent-item:hover,.agent-item.active{background:#0f2740;color:#fff}
+  .agent-item small{display:block;color:#64748b;font-size:9px;text-transform:uppercase;letter-spacing:.08em}
   .dot{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px #22c55e}
   .stats{position:absolute;bottom:16px;left:16px;display:flex;gap:16px;z-index:10;font-size:11px;color:#64748b}
   .stats span{color:#94a3b8}
@@ -32,29 +33,20 @@
 
 <div class="hud">
   <h1>◈ ATSMATRIX // AGENT GRAPH</h1>
-  <div class="sub">MULTI-AGENT NETWORK · API CONNECTOR · REAL-TIME TELEMETRY</div>
+  <div class="sub">STINT-NET AGENTOS · COMMAND CENTER TOPOLOGY · REPOSITORY-SYNCED</div>
 </div>
 
 <div class="panel">
-  <h2>Connect Agent</h2>
-  <div class="field">
-    <label>Agent Name</label>
-    <input id="agentName" placeholder="Researcher-01" value="">
-  </div>
-  <div class="field">
-    <label>Endpoint URL</label>
-    <input id="agentUrl" placeholder="https://api.example.com/v1/chat" value="">
-  </div>
-  <div class="field">
-    <label>API Key (optional)</label>
-    <input id="agentKey" type="password" placeholder="sk-...">
-  </div>
-  <button class="btn" onclick="connectAgent()">Connect Agent</button>
+  <h2>AgentOS Command Center</h2>
+  <div class="source" id="source"><strong>Loading repository graph…</strong>agentos-graph.json</div>
+  <div class="error" id="error"></div>
+  <div class="detail" id="detail"><strong>Select a node</strong><span>Inspect its role, parent, and capabilities.</span></div>
   <div class="agents-list" id="agentsList"></div>
 </div>
 
 <div class="stats">
   <div>Agents: <b id="statAgents">0</b></div>
+  <div>Sub-agents: <b id="statSubagents">0</b></div>
   <div>Links: <b id="statLinks">0</b></div>
   <div>Packets: <b id="statPackets">0</b></div>
   <div>FPS: <b id="statFps">0</b></div>
@@ -63,7 +55,7 @@
 <script>
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
-let W, H, agents = [], links = [], packets = [], frame = 0, lastTime = performance.now(), fps = 0;
+let W, H, agents = [], links = [], packets = [], frame = 0, lastTime = performance.now(), fps = 0, selectedId = null;
 
 function resize(){
   W = canvas.width = window.innerWidth;
@@ -71,62 +63,75 @@ function resize(){
 }
 window.addEventListener('resize', resize);
 resize();
+canvas.addEventListener('click',event=>{
+  const rect=canvas.getBoundingClientRect();
+  const x=(event.clientX-rect.left)*(canvas.width/rect.width), y=(event.clientY-rect.top)*(canvas.height/rect.height);
+  const hit=agents.find(agent=>Math.hypot(agent.x-x,agent.y-y)<=agent.radius*1.8);
+  if(hit) selectAgent(hit.id);
+});
 
 const COLORS = ['#38bdf8','#a855f7','#f43f5e','#22c55e','#f59e0b','#06b6d4','#ec4899'];
 
-function createAgent(name, url){
-  const angle = Math.random() * Math.PI * 2;
-  const r = 120 + Math.random() * 180;
+function createAgent(definition, index, total){
+  const angle = (index / Math.max(1,total)) * Math.PI * 2 - Math.PI/2;
+  const depth = definition.kind === 'subagent' ? 0.68 : definition.kind === 'control' ? 0.25 : 1;
+  const r = Math.min(W,H) * (0.22 + depth * 0.16);
   return {
-    id: Date.now() + Math.random(),
-    name: name || 'Agent-' + (agents.length+1),
-    url: url || '',
+    ...definition,
     x: W/2 + Math.cos(angle)*r,
     y: H/2 + Math.sin(angle)*r,
     vx: 0, vy: 0,
-    color: COLORS[agents.length % COLORS.length],
-    radius: 14 + Math.random()*4,
-    pulse: Math.random()*Math.PI*2
+    color: definition.kind === 'control' ? '#f59e0b' : definition.kind === 'subagent' ? '#a855f7' : COLORS[index % COLORS.length],
+    radius: definition.kind === 'control' ? 20 : definition.kind === 'subagent' ? 10 : 15,
+    pulse: index * 0.67
   };
 }
 
-// seed some demo agents
-['Discovery-Hub','Reasoning-Core','Verifier-01','Synth-Broker','Memory-Node'].forEach((n,i)=>{
-  agents.push(createAgent(n, 'sim://' + n.toLowerCase()));
-});
-rebuildLinks();
-
-function rebuildLinks(){
-  links = [];
-  for(let i=0;i<agents.length;i++){
-    for(let j=i+1;j<agents.length;j++){
-      if(Math.random() > 0.45) links.push({a:i, b:j, strength: 0.3 + Math.random()*0.5});
-    }
+async function loadGraph(){
+  try{
+    const response = await fetch('./agentos-graph.json',{cache:'no-store'});
+    if(!response.ok) throw new Error(`Graph snapshot HTTP ${response.status}`);
+    const graph = await response.json();
+    if(graph.schemaVersion !== 1 || !Array.isArray(graph.nodes) || !Array.isArray(graph.links)) throw new Error('Unsupported graph snapshot');
+    agents = graph.nodes.map((node,index)=>createAgent(node,index,graph.nodes.length));
+    const indexById = new Map(agents.map((agent,index)=>[agent.id,index]));
+    links = graph.links.map(link=>({a:indexById.get(link.source),b:indexById.get(link.target),strength:.68})).filter(link=>Number.isInteger(link.a)&&Number.isInteger(link.b));
+    document.getElementById('source').innerHTML = `<strong>${escapeHtml(graph.source.repository)}</strong>${escapeHtml(graph.source.manifest)} · rev ${escapeHtml(graph.source.revision)}<br>exported ${escapeHtml(new Date(graph.generatedAt).toLocaleString())}`;
+    selectedId = agents.find(agent=>agent.id==='commander')?.id || agents[0]?.id || null;
+    updateUI();
+  }catch(error){
+    const box=document.getElementById('error'); box.style.display='block'; box.textContent=`Source unavailable: ${error.message}`;
+    document.getElementById('source').innerHTML='<strong>Graph offline</strong>No demo agents substituted.';
   }
 }
 
-function connectAgent(){
-  const name = document.getElementById('agentName').value.trim() || 'Custom-Agent';
-  const url = document.getElementById('agentUrl').value.trim() || 'sim://custom';
-  agents.push(createAgent(name, url));
-  rebuildLinks();
-  updateUI();
-  document.getElementById('agentName').value = '';
-  document.getElementById('agentUrl').value = '';
-  document.getElementById('agentKey').value = '';
-}
+function escapeHtml(value){return String(value).replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));}
 
 function updateUI(){
   document.getElementById('statAgents').textContent = agents.length;
+  document.getElementById('statSubagents').textContent = agents.filter(agent=>agent.kind==='subagent').length;
   document.getElementById('statLinks').textContent = links.length;
   const list = document.getElementById('agentsList');
-  list.innerHTML = agents.map(a => `
-    <div class="agent-item">
-      <div class="dot" style="background:${a.color};box-shadow:0 0 6px ${a.color}"></div>
-      <div>${a.name}</div>
-    </div>`).join('');
+  list.replaceChildren(...agents.map(agent=>{
+    const button=document.createElement('button'); button.type='button'; button.className=`agent-item${agent.id===selectedId?' active':''}`;
+    const dot=document.createElement('span'); dot.className='dot'; dot.style.background=agent.color; dot.style.boxShadow=`0 0 6px ${agent.color}`;
+    const label=document.createElement('span'); label.textContent=agent.name;
+    const meta=document.createElement('small'); meta.textContent=`${agent.kind} · ${agent.role}`; label.appendChild(meta);
+    button.append(dot,label); button.onclick=()=>selectAgent(agent.id); return button;
+  }));
+  if(selectedId) selectAgent(selectedId,false);
 }
-updateUI();
+
+function selectAgent(id,refreshList=true){
+  selectedId=id; const agent=agents.find(item=>item.id===id); if(!agent)return;
+  const detail=document.getElementById('detail'); detail.replaceChildren();
+  const title=document.createElement('strong'); title.textContent=agent.name;
+  const meta=document.createElement('span'); meta.textContent=`${agent.kind.toUpperCase()} · ${agent.role} · parent ${agent.parentId||'root'}`;
+  const caps=document.createElement('span'); caps.textContent=agent.capabilities.length?agent.capabilities.join(' · '):'Visibility/control role — no executable capabilities';
+  detail.append(title,meta,caps); if(refreshList) updateUI();
+}
+
+loadGraph();
 
 function spawnPacket(){
   if(links.length === 0) return;
@@ -190,8 +195,8 @@ function draw(){
     ctx.beginPath();
     ctx.moveTo(a.x, a.y);
     ctx.lineTo(b.x, b.y);
-    ctx.strokeStyle = 'rgba(100,116,139,0.25)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = l.a===agents.findIndex(a=>a.id===selectedId)||l.b===agents.findIndex(a=>a.id===selectedId)?'rgba(56,189,248,.75)':'rgba(100,116,139,0.28)';
+    ctx.lineWidth = 1.2;
     ctx.stroke();
   });
 
@@ -229,6 +234,7 @@ function draw(){
     ctx.shadowBlur = 14;
     ctx.fill();
     ctx.shadowBlur = 0;
+    if(a.id===selectedId){ctx.beginPath();ctx.arc(a.x,a.y,a.radius*1.65,0,Math.PI*2);ctx.strokeStyle='#e0f2fe';ctx.lineWidth=1.5;ctx.stroke();}
     // label
     ctx.font = '11px system-ui';
     ctx.fillStyle = '#cbd5e1';
